@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Distance between Petrol stations in Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
+</head>
+<body>
+
+<div id="map" style="width: 100%; height: 700px;"></div>
+<div id="distance" style="padding: 10px; font-size: 16px"></div> 
+<script>
+    // Initialize the map
+    const map = L.map('map').setView([41.3460051, 69.2080258], 11);
+
+    // Add a base layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Fetch the GeoJSON file
+    fetch('petrols.json')
+        .then(response => response.json())
+        .then(data => {
+            const waypoints = [];
+            let totalDistance = 0;
+
+            const geoJsonLayer = L.geoJSON(data, {
+                onEachFeature: function (feature, layer) {
+                    const name = feature.properties.name;
+                    const description = feature.properties.description;
+                    layer.bindPopup(`<b>${name}</b><br>${description}`);
+                    // Add coordinates in the [lat, lon] format directly without reversing
+                    waypoints.push([feature.geometry.coordinates[1], feature.geometry.coordinates[0]]);
+            }
+        }).addTo(map);
+
+        //Draw magenta polyline connecting all waypoints
+        const polyline = L.polyline(waypoints, { color: 'magenta'}).addTo(map);
+
+        //Calculate total air travel distance using Turf.js
+        for (let i = 1; i< waypoints.length; i++) {
+            //Create Turf.js points with direct lat-lon array without reversing 
+            const from = turf.point([waypoints[i - 1][1], waypoints[i - 1][0]]);
+            const to = turf.point([waypoints[i][1], waypoints[i][0]]);
+            totalDistance += turf.distance(from, to, { units: 'kilometers'});    
+        }
+
+        //Display total distance
+        document.getElementById('distance').innerHTML = `Total Distance: ${totalDistance.toFixed(2)} km`;
+
+
+        //map.fitBounds(geoJsonLayer.getBounds());
+    })
+    .catch(error => console.error("Error loading GeoJSON:", error));
+
+</script>
+
+</body>
+</html>
